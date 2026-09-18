@@ -1,0 +1,68 @@
+name: Build Lio's Hight RPG APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Restore source bundle
+        run: |
+          base64 -d project.zip.b64 > project.zip
+          mkdir -p build-src
+          unzip -q project.zip -d build-src
+          test -f build-src/Lios-Hight-RPG/settings.gradle
+          test -f build-src/Lios-Hight-RPG/app/build.gradle
+
+      - name: Build installable APK
+        working-directory: build-src/Lios-Hight-RPG
+        run: gradle --no-daemon assembleDebug
+
+      - name: Validate package and signature
+        run: |
+          APK="build-src/Lios-Hight-RPG/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          cp "$APK" Lios-Hight-RPG.apk
+          sha256sum Lios-Hight-RPG.apk | tee Lios-Hight-RPG.apk.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lios-Hight-RPG-APK
+          path: |
+            Lios-Hight-RPG.apk
+            Lios-Hight-RPG.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
