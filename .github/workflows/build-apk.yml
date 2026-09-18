@@ -25,7 +25,6 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -36,6 +35,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Restore persistent debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: lios-hight-rpg-debug-keystore-v1
+
       - name: Restore source bundle
         run: |
           base64 -d project.zip.b64 > project.zip
@@ -43,6 +48,12 @@ jobs:
           unzip -q project.zip -d build-src
           test -f build-src/Lios-Hight-RPG/settings.gradle
           test -f build-src/Lios-Hight-RPG/app/build.gradle
+
+      - name: Apply v1.1 coherence patch
+        run: |
+          bash patch-v1.1.sh build-src/Lios-Hight-RPG
+          grep "versionName '1.1.0'" build-src/Lios-Hight-RPG/app/build.gradle
+          grep "openrouter/free" build-src/Lios-Hight-RPG/app/src/main/assets/index.html >/dev/null
 
       - name: Build installable APK
         working-directory: build-src/Lios-Hight-RPG
@@ -54,15 +65,15 @@ jobs:
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
-          cp "$APK" Lios-Hight-RPG.apk
-          sha256sum Lios-Hight-RPG.apk | tee Lios-Hight-RPG.apk.sha256
+          cp "$APK" Lios-Hight-RPG-v1.1.0.apk
+          sha256sum Lios-Hight-RPG-v1.1.0.apk | tee Lios-Hight-RPG-v1.1.0.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Lios-Hight-RPG-APK
+          name: Lios-Hight-RPG-v1.1.0
           path: |
-            Lios-Hight-RPG.apk
-            Lios-Hight-RPG.apk.sha256
+            Lios-Hight-RPG-v1.1.0.apk
+            Lios-Hight-RPG-v1.1.0.apk.sha256
           if-no-files-found: error
           retention-days: 30
