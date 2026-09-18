@@ -18,20 +18,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install build tools
+      - name: Install SDK pieces
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: Prepare tools
         run: |
-          mkdir -p export/lib
+          mkdir -p export/lib export/platforms/android-35
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" export/
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" export/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" export/
+          cp "$ANDROID_HOME/build-tools/35.0.0/d8" export/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" export/lib/
-          chmod +x export/apksigner export/zipalign
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar" export/lib/
+          cp "$ANDROID_HOME/platforms/android-35/android.jar" export/platforms/android-35/
+          chmod +x export/apksigner export/zipalign export/aapt2 export/d8
       - uses: actions/upload-artifact@v4
         with:
-          name: android-sign-tools-35
+          name: android-local-build-kit
           path: export
           retention-days: 1
